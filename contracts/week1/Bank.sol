@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+
+interface IBank {
+    function getTop3() external view returns(address[3] memory);
+    function getBalance() external view returns(uint);
+    function withdraw(address payable requestAddr) external payable;
+}
+
 contract Bank {
   mapping(address => uint) balances;
   address[3] top3;
@@ -13,7 +20,11 @@ contract Bank {
   receive() external payable { 
     balances[msg.sender] += msg.value; // transfer ether
     // top3[0] = msg.sender;
+    deposit();
+    
+  }
 
+  function deposit() private {
     for(uint i=0;i<3;i++){
       address currentAddr = top3[i];
       if(currentAddr == 0x0000000000000000000000000000000000000000){
