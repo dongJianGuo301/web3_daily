@@ -18,16 +18,17 @@ contract Bank {
   }
 
   receive() external payable { 
-    balances[msg.sender] += msg.value; // transfer ether
-    // top3[0] = msg.sender;
     deposit();
     
   }
 
-  function deposit() private {
+  // 实现IBank接口的deposit方法
+  function deposit() public virtual payable {
+    balances[msg.sender] += msg.value; // transfer ether
+
     for(uint i=0;i<3;i++){
       address currentAddr = top3[i];
-      if(currentAddr == 0x0000000000000000000000000000000000000000){
+      if(currentAddr == address(0)){
         top3[i] = msg.sender;
         break;
       }
@@ -45,8 +46,14 @@ contract Bank {
     }
   }
 
+  // 实现IBank接口的getBalance方法
   function getBalance() public view returns(uint) {
    return balances[msg.sender];
+  }
+
+  // 实现IBank接口的getTop3方法
+  function getTop3() public view returns(address[3] memory) {
+    return top3;
   }
 
   function setAdmin() public {
@@ -59,13 +66,45 @@ contract Bank {
     return top3[index];
   }
 
-  function withdraw(address payable requestAddr) public payable olnyAdmin(requestAddr) {
-    address contractAddr = address(this);
-    requestAddr.transfer(contractAddr.balance);
+  function withdraw(address payable requestAddr) public payable onlyAdmin(requestAddr) {
+    uint balance = address(this).balance;
+    require(balance>0,"no funds to withdraw");
+    requestAddr.transfer(balance);
   }
 
-  modifier olnyAdmin(address payable requestAddr){
+  // 转移管理员权限
+  function transferAdmin(address newAdmin) public {
+      require(newAdmin != address(0), "Invalid admin address");
+      admin = newAdmin;
+  }
+
+  modifier onlyAdmin(address payable requestAddr){
     require(requestAddr == admin,"only admin can do this");
     _;
   }
+}
+
+// Admin合约
+contract Admin {
+    address public owner;
+
+    // 构造函数设置合约部署者为owner
+    constructor() {
+        owner = msg.sender;
+    }
+
+    // 只有owner可以调用的修饰符
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can call this");
+        _;
+    }
+
+    // 从银行合约取款到本Admin合约
+    function adminWithdraw(IBank bank) external onlyOwner {
+        // 调用银行合约的withdraw方法，将资金转移到本合约
+        bank.withdraw(payable(address(this)));
+    }
+
+    // 允许Admin合约接收以太币
+    receive() external payable {}
 }
